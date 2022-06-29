@@ -1,0 +1,22 @@
+<html lang="en">
+    <%- include('./partials/header.ejs') %>
+<body>
+    <%- include('./partials/nav.ejs')%>
+
+    <div class = "files content">
+        <h2>Main Page</h2>
+        <p>Hi, this website provides uploading and downloading services.</p>
+        <p>Data is preserved as long as 14 days.</p>
+        
+        <% if (files.length > 0) {%>
+            <% files.forEach(file => { %>
+                <h3 class="title"> <%= file.title %></h3>
+                <p class="snippet"><%= file.snippet%></p>
+            <%});%>
+        <% }%>  
+        
+
+    </div>
+</body>
+<%- include("./partials/footer.ejs") %>
+</html>

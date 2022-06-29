@@ -1,0 +1,35 @@
+<html lang="en">
+    <%- include('./partials/header.ejs') %>
+<body>
+    <%- include('./partials/nav.ejs')%>
+
+    <div class = "list content">
+        <h2>File List</h2>
+        <h3> Available Files </h3>
+        
+        <% if(files){ %>
+          <% files.forEach(function(file) { %>
+            <div class="card card-body mb-3">
+              <% if(file) { %>
+                <%= file.filename %>
+                <% } else { %>
+                  <%= file.filename %>
+                    <% } %>
+                      <form action="/upload/<%= file._id %>?_method=DELETE" method="POST">
+                        <button class="btn btn-danger btn-block mt-4">DELETE</button>
+                        <a href="-TO BE ADDED-" download="downloaded file">  <button class="btn btn-danger btn-block mt-4">DOWNLOAD</button></a>
+                      </form>
+                      
+            </div>
+            <% }) %>
+              <% } else { %>
+                <p>No files to show</p>
+                <% } %>
+        
+    </div>
+
+    
+
+</body>
+<%- include("./partials/footer.ejs") %>
+</html>
