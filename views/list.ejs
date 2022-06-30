@@ -10,15 +10,13 @@
         <% if(files){ %>
           <% files.forEach(function(file) { %>
             <div class="card card-body mb-3">
-              <% if(file) { %>
-                <%= file.filename %>
-                <% } else { %>
-                  <%= file.filename %>
-                    <% } %>
-                      <form action="/upload/<%= file._id %>?_method=DELETE" method="POST">
-                        <button class="btn btn-danger btn-block mt-4">DELETE</button>
-                        <a href="-TO BE ADDED-" download="downloaded file">  <button class="btn btn-danger btn-block mt-4">DOWNLOAD</button></a>
-                      </form>
+              <%= file.filename %>
+                    <form action= "/getfile" method="post"> 
+                      <button class="delete">DELETE</button>
+                    </form>
+                    <form action="/getfile<%= file._id %>?_method=DOWNLOAD" method="post">
+                      <button class="download">DOWNLOAD</button>
+                    </form>
                       
             </div>
             <% }) %>

@@ -11,15 +11,8 @@ const { application } = require('express');
 
 
 // Middleware
-server.use(bodyParser.json());
+server.use(bodyParser.json()); //정확히 뭘 하는지 모르겠다
 server.use(methodOverride('_method'));  
-
-// server.post(
-//   accessControlMiddleWare,
-//   parseJsonMiddleWare,
-//  (req,res,next)=>{
-//   //server deals with db
-//  });
 
 // Mongo URI    
 const mongoURI = "mongodb+srv://mingi:mingi@cluster0.0ct4j.mongodb.net/test";
@@ -39,9 +32,10 @@ const storage = new GridFsStorage({
   url: mongoURI,
   cache: true, // cache
   file: (req, file) => {
-    return 'file_' + Date.now();
+    return file.originalname + Date.now();
   }
 });
+
 const upload = multer({ storage });
 
   // @rout GET /
@@ -53,7 +47,7 @@ const upload = multer({ storage });
 
   // @route POST /upload
   // @desc uploads file to DB
-  server.post('/upload', upload.single('file'), (req, res) => { 
+  server.post('/upload', upload.single('file'), (req, res) => {
     res.redirect("/");
   });
 
@@ -69,6 +63,12 @@ server.get('/', (req,res) => {
     const files = []; 
     res.render('index', {title : 'HOME', files});
 });
+
+
+// const db = client.db(dbName);
+// const bucket = new mongodb.GridFSBucket(db);
+// require('./controller/controller')(this.controller);
+// module.exports = { controller };
 
 server.get('/list', (req, res) => {
     gfs.files.find().toArray((err, files) => {
@@ -89,41 +89,68 @@ server.get('/list', (req, res) => {
   });
 
 // @route DELETE /files/:id
-server.delete((req, res) => {
-  db.test_users.deleteOne( {"_id": ObjectId("bded1e47b6a3be3837cdf1b62ef0ccde")});
-  // gfs.remove(options, function (err, gridStore) {
-  //   if (err) return handleError(err);
-  //   console.log('success');
-  // });
-});
+// server.delete((req, res) => {
+//   db.test.deleteOne( {"_id": file._id}); // db.test_users. ?? why users
+// });
 
+// server.post('/files/del/:id', (req, res) => {
+//   gfs.remove({ _id: file._id, root: "uploads" }, (err, gridStore) => {
+//            if (err) {
+//                return res.status(404).json({ err });
+//            }
+//            return;
 
-// server.get('/download', async (req, res) => {
-//   var id = "<file_id_xyz>";
-//   gfs = Grid(conn.db, mongoose.mongo);
-//   gfs.collection("<name_of_collection>").findOne({ "_id": mongodb.ObjectId(id) }, (err, file) => {
-//       if (err) {
-//           // report the error
-//           console.log(err);
-//       } else {
-//           // detect the content type and set the appropriate response headers.
-//           let mimeType = file.contentType;
-//           if (!mimeType) {
-//               mimeType = mime.lookup(file.filename);
-//           }
-//           res.set({
-//               'Content-Type': mimeType,
-//               'Content-Disposition': 'attachment; filename=' + file.filename
-//           });
+//        });
+// });
 
-//           const readStream = gfs.createReadStream({
-//               _id: id
-//           });
-//           readStream.on('error', err => {
-//               // report stream error
-//               console.log(err);
-//           });
-//           // the response will be the file itself.
-//           readStream.pipe(res);
-//       }
-//   })});
+// server.get(mongoURI, function(req, res){
+//   const file = {"_id": file._id};
+//   res.download(file);
+// });
+
+module.exports.getFile = (req, res) => {
+  //Accepting user input directly is very insecure and should 
+  //never be allowed in a production app. Sanitize the input.
+  let fileName = req.body.text1;
+  //Connect to the MongoDB client
+  MongoClient.connect(url, function(err, client){
+
+    if(err){
+      return res.render('index', {title: 'Uploaded Error', message: 'MongoClient Connection error', error: err.errMsg});
+    }
+    const db = client.db(dbName);
+    
+    const collection = db.collection('fs.files');
+    const collectionChunks = db.collection('fs.chunks');
+    collection.find({filename: fileName}).toArray(function(err, docs){
+      if(err){
+        return res.render('index', {title: 'File error', message: 'Error finding file', error: err.errMsg});
+      }
+      if(!docs || docs.length === 0){
+        return res.render('index', {title: 'Download Error', message: 'No file found'});
+      }else{
+        //Retrieving the chunks from the db
+        collectionChunks.find({files_id : docs[0]._id}).sort({n: 1}).toArray(function(err, chunks){
+          if(err){
+            return res.render('index', {title: 'Download Error', message: 'Error retrieving chunks', error: err.errmsg});
+          }
+          if(!chunks || chunks.length === 0){
+            //No data found
+            return res.render('index', {title: 'Download Error', message: 'No data found'});
+          }
+          //Append Chunks
+          let fileData = [];
+          for(let i=0; i<chunks.length;i++){
+            //This is in Binary JSON or BSON format, which is stored
+            //in fileData array in base64 endocoded string format
+            fileData.push(chunks[i].data.toString('base64'));
+          }
+          //Display the chunks using the data URI format
+          let finalFile = 'data:' + docs[0].contentType + ';base64,' + fileData.join('');
+          res.render('imageView', {title: 'Image File', message: 'Image loaded from MongoDB GridFS', imgurl: finalFile});
+        });
+      }
+      
+    });
+  });
+};
