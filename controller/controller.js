@@ -1,13 +1,47 @@
+const MongoClient = require('mongodb');
+const multer = require('multer');
+const GridFsStorage = require('multer-gridfs-storage')
+
+//I used an mlab Sandbox DB. Substitute the details with your own
+const url = "mongodb://<dbuser>:<dbpwd>@ds112345.mlab.com:12435/your_db_name";
+const dbName = "your_db_name";
+
+let storage = new GridFsStorage({
+  url: "mongodb://<dbuser>:<dbpwd>@ds112345.mlab.com:12435/your_db_name",
+  file: (req, file) => {
+    return {
+      bucketName: 'test',       //Setting collection name, default name is fs
+      filename: file.originalname     //Setting file name to original name of file
+    }
+  }
+});
+
+let upload = null;
+
+storage.on('connection', (db) => {
+  //Setting up upload for a single file
+  upload = multer({
+    storage: storage
+  }).single('file1');
+  
+});
+
 
 module.exports.loadHome = (req, res) => {
   res.render('index', {title: 'Express App', message: 'Express Boilerplate set up!'});
 };
 
+module.exports.uploadFile = (req, res) => {
+  upload(req, res, (err) => {
+    if(err){
+      return res.render('index', {title: 'Uploaded Error', message: 'File could not be uploaded', error: err});
+    }
+    res.render('index', {title: 'Uploaded', message: `File ${req.file.filename} has been uploaded!`});
+  });
+};
+
 module.exports.getFile = (req, res) => {
-  //Accepting user input directly is very insecure and should 
-  //never be allowed in a production app. Sanitize the input.
   let fileName = req.body.text1;
-  //Connect to the MongoDB client
   MongoClient.connect(url, function(err, client){
 
     if(err){

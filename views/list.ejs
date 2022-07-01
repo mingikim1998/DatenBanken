@@ -11,11 +11,11 @@
           <% files.forEach(function(file) { %>
             <div class="card card-body mb-3">
               <%= file.filename %>
-                    <form action= "/getfile" method="post"> 
+                    <form action= "/delete<%= file._id %>" method="post"> 
                       <button class="delete">DELETE</button>
                     </form>
-                    <form action="/getfile<%= file._id %>?_method=DOWNLOAD" method="post">
-                      <button class="download">DOWNLOAD</button>
+                    <form action="/getfile/<%= file._id %>" method="get">
+                      <input type="submit" value="DOWNLOAD" class="btn btn-primary btn-block">
                     </form>
                       
             </div>

@@ -6,8 +6,10 @@ const multer = require('multer');
 const {GridFsStorage} = require('multer-gridfs-storage');
 const Grid = require('gridfs-stream');
 const methodOverride = require('method-override');
-const { appendFile } = require('fs');
+// const { appendFile } = require('fs');
+const {fs} = require('fs');
 const { application } = require('express');
+
 
 
 // Middleware
@@ -38,21 +40,79 @@ const storage = new GridFsStorage({
 
 const upload = multer({ storage });
 
-  // @rout GET /
-  // @desc Loads from
-  server.get("/upload", (req,res) =>{
-      res.render('upload');
-  });
+server.get("/upload", (req,res) =>{
+  res.render('upload');
+});
+
+// const { promisify } = require('util');
+// const unlinkAsync = promisify(fs.unlink);
+
+// @rout delete/
+// server.post('/delete', upload, async (req, res) =>{
+//   // You aren't doing anything with data so no need for the return value
+//   await uploadToRemoteBucket(req.file.path)
+
+//   // Delete the file like normal
+//   await unlinkAsync(req.file.path)
+
+//   res.end("UPLOAD COMPLETED!")
+// })
+
+// server.post('/delete', upload.single('file'), (req, res) => {
+//   res.redirect("/");
+// });
 
 
-  // @route POST /upload
-  // @desc uploads file to DB
-  server.post('/upload', upload.single('file'), (req, res) => {
-    res.redirect("/");
-  });
+// @route POST /upload
+server.post('/upload', upload.single('file'), (req, res) => {
+  res.redirect("/");
+});
+
+// server.post('/upload', function(req, res) {
+//   var dirname = require('path').dirname(__dirname);
+//   var filename = req.file.filename;
+//   var path = req.file.path;
+//   var type = req.file.mimetype;
+//   var read_stream =  fs.createReadStream(dirname + '/' + path);
+
+//   var writestream = gfs.createWriteStream({
+//       _id:  filename,
+//     'filename': req.file.filename,
+//      mode: 'w',
+//      content_type: type
+//   });
+//   read_stream.pipe(writestream);
+
+//   writestream.on('close', function (file) {
+//      res.status(200).json({'filename': filename});
+//    });
+// });
+
+
 
 // register view engine
 server.set('view engine', 'ejs'); 
+
+server.get('/getfile/:file_id',(req , res) => {
+  var file_id = req.params.id;
+  gfs.files.find({_id: file_id}).toArray(function (err, files) {
+    if (err) {
+      res.json(err);
+    }
+    if (files.length > 0) {
+      var mime = files[0].contentType;
+      var filename = files[0].filename;
+      res.set('Content-Type', mime);
+      res.set('Content-Disposition', "inline; filename=" + filename);
+      var read_stream = gfs.createReadStream({_id: file_id});
+      read_stream.pipe(res);
+    } else {
+      res.json(file_id+ '  This file does not exist.');
+    }
+  });
+});
+
+module.exports = server;
 
 let port = 3000;
 server.listen(port, () => {
@@ -64,11 +124,6 @@ server.get('/', (req,res) => {
     res.render('index', {title : 'HOME', files});
 });
 
-
-// const db = client.db(dbName);
-// const bucket = new mongodb.GridFSBucket(db);
-// require('./controller/controller')(this.controller);
-// module.exports = { controller };
 
 server.get('/list', (req, res) => {
     gfs.files.find().toArray((err, files) => {
@@ -87,70 +142,3 @@ server.get('/list', (req, res) => {
       }
     });
   });
-
-// @route DELETE /files/:id
-// server.delete((req, res) => {
-//   db.test.deleteOne( {"_id": file._id}); // db.test_users. ?? why users
-// });
-
-// server.post('/files/del/:id', (req, res) => {
-//   gfs.remove({ _id: file._id, root: "uploads" }, (err, gridStore) => {
-//            if (err) {
-//                return res.status(404).json({ err });
-//            }
-//            return;
-
-//        });
-// });
-
-// server.get(mongoURI, function(req, res){
-//   const file = {"_id": file._id};
-//   res.download(file);
-// });
-
-module.exports.getFile = (req, res) => {
-  //Accepting user input directly is very insecure and should 
-  //never be allowed in a production app. Sanitize the input.
-  let fileName = req.body.text1;
-  //Connect to the MongoDB client
-  MongoClient.connect(url, function(err, client){
-
-    if(err){
-      return res.render('index', {title: 'Uploaded Error', message: 'MongoClient Connection error', error: err.errMsg});
-    }
-    const db = client.db(dbName);
-    
-    const collection = db.collection('fs.files');
-    const collectionChunks = db.collection('fs.chunks');
-    collection.find({filename: fileName}).toArray(function(err, docs){
-      if(err){
-        return res.render('index', {title: 'File error', message: 'Error finding file', error: err.errMsg});
-      }
-      if(!docs || docs.length === 0){
-        return res.render('index', {title: 'Download Error', message: 'No file found'});
-      }else{
-        //Retrieving the chunks from the db
-        collectionChunks.find({files_id : docs[0]._id}).sort({n: 1}).toArray(function(err, chunks){
-          if(err){
-            return res.render('index', {title: 'Download Error', message: 'Error retrieving chunks', error: err.errmsg});
-          }
-          if(!chunks || chunks.length === 0){
-            //No data found
-            return res.render('index', {title: 'Download Error', message: 'No data found'});
-          }
-          //Append Chunks
-          let fileData = [];
-          for(let i=0; i<chunks.length;i++){
-            //This is in Binary JSON or BSON format, which is stored
-            //in fileData array in base64 endocoded string format
-            fileData.push(chunks[i].data.toString('base64'));
-          }
-          //Display the chunks using the data URI format
-          let finalFile = 'data:' + docs[0].contentType + ';base64,' + fileData.join('');
-          res.render('imageView', {title: 'Image File', message: 'Image loaded from MongoDB GridFS', imgurl: finalFile});
-        });
-      }
-      
-    });
-  });
-};
