@@ -93,24 +93,6 @@ server.post('/upload', upload.single('file'), (req, res) => {
 // register view engine
 server.set('view engine', 'ejs'); 
 
-server.get('/getfile/:file_id',(req , res) => {
-  var file_id = req.params.id;
-  gfs.files.find({_id: file_id}).toArray(function (err, files) {
-    if (err) {
-      res.json(err);
-    }
-    if (files.length > 0) {
-      var mime = files[0].contentType;
-      var filename = files[0].filename;
-      res.set('Content-Type', mime);
-      res.set('Content-Disposition', "inline; filename=" + filename);
-      var read_stream = gfs.createReadStream({_id: file_id});
-      read_stream.pipe(res);
-    } else {
-      res.json(file_id+ '  This file does not exist.');
-    }
-  });
-});
 
 module.exports = server;
 
@@ -142,3 +124,23 @@ server.get('/list', (req, res) => {
       }
     });
   });
+
+
+server.get('/:file_id', function(req , res) {
+  var file_id = req.params.file_id;
+  gfs.files.find({_id: file_id}).toArray(function (err, files) {
+    if (err) {
+      res.json(err);
+    }
+    if (files.length > 0) {
+      var mime = files[0].contentType;
+      var filename = files[0].filename;
+      res.set('Content-Type', mime);
+      res.set('Content-Disposition', "inline; filename=" + filename);
+      var read_stream = gfs.createReadStream({_id: file_id});
+      read_stream.pipe(res);
+    } else {
+      res.json(file_id+ '  This file does not exist.');
+    }
+  });
+});
