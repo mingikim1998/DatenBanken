@@ -6,14 +6,12 @@ const multer = require('multer');
 const {GridFsStorage} = require('multer-gridfs-storage');
 const Grid = require('gridfs-stream');
 const methodOverride = require('method-override');
-// const { appendFile } = require('fs');
 const {fs} = require('fs');
-const { application } = require('express');
 
 
 
 // Middleware
-server.use(bodyParser.json()); //정확히 뭘 하는지 모르겠다
+server.use(bodyParser.json());
 server.use(methodOverride('_method'));  
 
 // Mongo URI    
@@ -26,73 +24,47 @@ const conn = mongoose.createConnection(mongoURI);
 let gfs;
 
 conn.once('open', () =>{
-    gfs = Grid(conn.db, mongoose.mongo); // mongoose.mongo
+    gfs = Grid(conn.db, mongoose.mongo);
     //gfs.collection('uploads');
 });
+
+Date.prototype.yyyymmdd = function() {
+  var mm = this.getMonth() + 1;
+  var dd = this.getDate();
+
+  return [this.getFullYear(),
+          (mm>9 ? '' : '0') + mm,
+          (dd>9 ? '' : '0') + dd
+         ].join('');
+};
+
+var date = new Date();
+date.yyyymmdd(); // date in format
 
 const storage = new GridFsStorage({
   url: mongoURI,
   cache: true, // cache
   file: (req, file) => {
-    return file.originalname + Date.now();
+    return file.originalname + date.yyyymmdd();
   }
 });
 
+
+const maxSize = 10 * 1024 * 1024; // upload size limit
 const upload = multer({ storage });
+
 
 server.get("/upload", (req,res) =>{
   res.render('upload');
 });
-
-// const { promisify } = require('util');
-// const unlinkAsync = promisify(fs.unlink);
-
-// @rout delete/
-// server.post('/delete', upload, async (req, res) =>{
-//   // You aren't doing anything with data so no need for the return value
-//   await uploadToRemoteBucket(req.file.path)
-
-//   // Delete the file like normal
-//   await unlinkAsync(req.file.path)
-
-//   res.end("UPLOAD COMPLETED!")
-// })
-
-// server.post('/delete', upload.single('file'), (req, res) => {
-//   res.redirect("/");
-// });
-
-
-// @route POST /upload
+ 
 server.post('/upload', upload.single('file'), (req, res) => {
   res.redirect("/");
 });
 
-// server.post('/upload', function(req, res) {
-//   var dirname = require('path').dirname(__dirname);
-//   var filename = req.file.filename;
-//   var path = req.file.path;
-//   var type = req.file.mimetype;
-//   var read_stream =  fs.createReadStream(dirname + '/' + path);
-
-//   var writestream = gfs.createWriteStream({
-//       _id:  filename,
-//     'filename': req.file.filename,
-//      mode: 'w',
-//      content_type: type
-//   });
-//   read_stream.pipe(writestream);
-
-//   writestream.on('close', function (file) {
-//      res.status(200).json({'filename': filename});
-//    });
-// });
-
-
 
 // register view engine
 server.set('view engine', 'ejs'); 
-
 
 module.exports = server;
 
@@ -113,22 +85,15 @@ server.get('/list', (req, res) => {
       if (!files || files.length === 0) {
         res.render('list', { files: false });
       } else {
-        files.map(file => {
-          if (
-            file.contentType === 'png'
-          ) {
-            file.isPdf = true; 
-          }
-        });
         res.render('list', { files: files });
       }
     });
   });
 
 
-server.get('/:file_id', function(req , res) {
-  var file_id = req.params.file_id;
-  gfs.files.find({_id: file_id}).toArray(function (err, files) {
+server.get('/download:file_id', function(req , res) {
+  var file_id = (req.params.file_id);
+  gfs.files.find({_id: file_id}).toArray(function (err, files) { //_id: files_id
     if (err) {
       res.json(err);
     }
@@ -136,11 +101,16 @@ server.get('/:file_id', function(req , res) {
       var mime = files[0].contentType;
       var filename = files[0].filename;
       res.set('Content-Type', mime);
-      res.set('Content-Disposition', "inline; filename=" + filename);
+      res.set('Content-Disposition', "attachment; filename=" + filename);
       var read_stream = gfs.createReadStream({_id: file_id});
-      read_stream.pipe(res);
+      read_stream.pipe(res); 
+
     } else {
-      res.json(file_id+ '  This file does not exist.');
+      res.json(file_id+ '  This file does not exist.'); 
     }
   });
 });
+
+server.use((req, res) => { // default
+      res.render("404");
+  });
